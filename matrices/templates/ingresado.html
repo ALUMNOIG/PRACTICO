@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="Description" content=" Caso práctico del curso Python full stack de Ibm Skillsbuild y Bejob , generador 
+    de matriz nxn utilizando html css javascript python django bootstrap numpy git github y visualstudio  alumno José 
+    Manuel Sánchez Garcia ">
+    <meta name="Keywords" content=" html, css, javascript, git, github, python, bootstrap, django, numpy, matriz, ibm,
+     Skillsbuild, bejob, programación, ejemplo, caso, práctico ">
+    <title>Generar una matriz de N x N</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"> 
+</head>
+<body>
+    <div class="container d-flex justify-content-center vh-100">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <p class="text-center"><b>Generador de Matriz NxN</b></p>
+                {% if error %}
+                <div class="alert alert-danger text-center" role="alert">
+                    {{ error }}
+                </div>
+                {% endif %}
+                <form method="POST" action="{% url 'suma' %}" class="text-center">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="n">Introduce el valor de N:</label>
+                        <select name="n" id="n" class="form-control select-wrapper">
+                            {% for i in range_values %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <br>
+                    <button type="submit" class="btn btn-primary">Generar Matriz</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

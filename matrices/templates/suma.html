@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="Description" content="""Caso practico del curso Python full stack de Ibm Skillsbuild y Bejob , 
+    generador de matriz nxn utilizando html css javascript python django bootstrap git github y visualstudio por 
+    el alumno José Manuel Sánchez Garcia """>
+    <meta name="Keywords" content=""" codigo, html, css, javascript, git, github, python, bootstrap, django, matriz, ibm,
+     Skillsbuild, bejob, programacion web, ejemplo, caso practico """>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initialscale=1.0">
+    <title>Suma de Filas y Columnas</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+</head>
+<body style="background-color: #f2f2f2;">
+    <div class="container">
+        <h3 class="text-center"><br>Matriz de {{ i }} x {{ i }}</h3>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <form method="POST" action="{% url 'ingresar' %}">
+                {% csrf_token %}
+                <input type="submit" value="Nueva Matriz" class="btn btn-primary"><br><br>
+            </form>
+        </div>
+        
+        <div class="accordion" id="accordionExample">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                    <button class="accordion-button text-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        <br><b>Matriz Generada</b>
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        <div class="table-responsive">
+                            <table class="table small-table table-striped mx-auto" >
+
+                                {% for row in matriz %}
+                                    <tr>
+                                        {% for element in row %}
+                                            <td>{{ element }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo" > 
+                    <button class="accordion-button text-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                       <br> <b>Suma de Filas</b>
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        <table class="table small-table table-striped mx-auto" >
+                            <tr>
+                                {% for suma in suma_filas %}
+                                    <td>{{ suma }}</td>
+                                {% endfor %}
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingThree">
+                    <button class="accordion-button text-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                       <br> <b>Suma de Columnas</b>
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                         <table class="table small-table table-striped mx-auto" >
+                            <tr>
+                                {% for suma in suma_columnas %}
+                                    <td>{{ suma }}</td>
+                                {% endfor %}
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
