@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jigsaw Puzzle Game</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .main-container {
+            width: 80%;
+            margin: 20px;
+            display: flex; /* Added for better layout of children */
+            flex-direction: column; /* Stack children vertically */
+            align-items: center; /* Center children horizontally */
+        }
+        #frame1 {
+            /* width will be set by JS based on image, height too */
+            /* height: 400px; */ /* Default, will be overridden */
+            border: 1px solid black; /* Keep border for visibility if grid fails */
+            margin-top: 20px;
+            background-color: #f0f0f0; /* Fallback background */
+            display: grid; /* This will be configured by JS */
+        }
+        #frame2 {
+            /* width will be set by JS based on image, height can be more flexible */
+            width: 80%; /* Take more width to show pieces */
+            min-height: 150px; /* Minimum height for piece area */
+            border: 1px solid black;
+            margin-top: 20px;
+            background-color: #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px; /* Gap between puzzle pieces */
+            padding: 5px; /* Padding inside the frame */
+            justify-content: center; /* Center pieces if they don't fill the row */
+            overflow: auto; /* Add scroll for many pieces */
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+        }
+        .placeholder {
+            background-color: #ddd;
+            border: 1px dashed #999;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .puzzle-piece-img {
+            /* Adjust max-width/height if pieces are too large for frame2 */
+            max-width: 100px; /* Example, might need adjustment based on piece size */
+            max-height: 100px; /* Example */
+            border: 1px solid #777;
+            cursor: grab;
+        }
+        #frame1 img { /* Style for the hint piece and later dropped pieces */
+            box-sizing: border-box; /* Ensure border doesn't add to size, affecting grid */
+            border: 1px solid blue; /* Clearly identify placed pieces */
+            width: 100%; /* Make image fill the grid cell */
+            height: 100%; /* Make image fill the grid cell */
+            object-fit: cover; /* Cover the area, might crop but maintains aspect ratio */
+        }
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed red;
+        }
+        .drop-target-highlight {
+            background-color: #lightgreen;
+            border: 2px dashed green;
+        }
+        .correct-piece-temp {
+            border: 3px solid green !important; /* !important to override other borders */
+        }
+        .incorrect-piece-temp {
+            border: 3px solid red !important; /* !important to override other borders */
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div>
+            <label for="difficultySelect">Difficulty:</label>
+            <select id="difficultySelect" style="margin-bottom: 10px;">
+                <option value="3">Easy (3x3)</option>
+                <option value="4" selected>Medium (4x4)</option>
+                <option value="5">Hard (5x5)</option>
+                <option value="6">Very Hard (6x6)</option>
+            </select>
+        </div>
+        <input type="text" id="imageUrl" placeholder="Enter image URL">
+        <button id="startGame">Start Game</button>
+        <div>Timer: <span id="timer">5:00</span></div>
+        <div id="frame1"></div>
+        <div id="frame2"></div>
+        <button id="done">Done</button>
+        <button id="giveUp">Give Up</button>
+    </div>
+    <script>
+        // Get DOM elements
+        const imageUrlInput = document.getElementById('imageUrl');
+        const startGameButton = document.getElementById('startGame');
+        const frame1 = document.getElementById('frame1'); // Will be used later
+        const frame2 = document.getElementById('frame2'); // Will be used later
+        const timerDisplay = document.getElementById('timer');
+        const doneButton = document.getElementById('done');
+        const giveUpButton = document.getElementById('giveUp');
+        const difficultySelect = document.getElementById('difficultySelect'); // Added
+
+        // Array to store puzzle pieces and grid dimensions
+        let puzzlePieces = [];
+        let rows = 4; // Default, will be updated by difficultySelect
+        let cols = 4; // Default, will be updated by difficultySelect
+        let pieceWidth = 0;
+        let pieceHeight = 0;
+        let imageAspectRatio = 1;
+
+        // Timer variables
+        let timerInterval;
+        let timeRemaining = 5 * 60; // 5 minutes in seconds
+
+
+        // Event listener for the "Start Game" button
+        startGameButton.addEventListener('click', startGame);
+
+        // Event listeners for Done and Give Up buttons
+        doneButton.addEventListener('click', validatePuzzle);
+
+        giveUpButton.addEventListener('click', giveUpGame); // Changed this line
+
+
+        function giveUpGame() {
+            clearInterval(timerInterval);
+            alert("You've given up! Here is the solution.");
+
+            // Clear piece selection area
+            frame2.innerHTML = '<h2>Game Over - Solution Shown</h2>';
+
+            // Display solved puzzle in frame1
+            frame1.innerHTML = ''; // Clear current board
+            // Ensure frame1 grid styles are active (should be from startGame)
+            // frame1.style.display = 'grid'; // Already set
+            // frame1.style.gridTemplateColumns = `repeat(${cols}, ${pieceWidth}px)`; // Already set
+            // frame1.style.gridTemplateRows = `repeat(${rows}, ${pieceHeight}px)`; // Already set
+
+            if (!puzzlePieces || puzzlePieces.length === 0) {
+                console.error("Original puzzle pieces not available for give up.");
+                frame1.innerHTML = '<p>Sorry, solution cannot be displayed.</p>';
+                return;
+            }
+
+            puzzlePieces.forEach(pieceData => {
+                const img = document.createElement('img');
+                img.src = pieceData.data;
+                // Styling for image in grid cell is handled by #frame1 img CSS
+                // (width: 100%; height: 100%; object-fit: cover;)
+                img.style.gridColumnStart = pieceData.x + 1;
+                img.style.gridRowStart = pieceData.y + 1;
+                // Remove any validation classes if they were somehow applied
+                img.classList.remove('correct-piece-temp', 'incorrect-piece-temp');
+                frame1.appendChild(img);
+            });
+
+            // Disable game interaction buttons
+            doneButton.disabled = true;
+            giveUpButton.disabled = true;
+        }
+
+        function validatePuzzle() {
+            clearInterval(timerInterval); // Stop the timer
+
+            const childrenInFrame1 = Array.from(frame1.children);
+            let allSlotsFilled = true;
+
+            if (childrenInFrame1.length !== rows * cols) { // Check if total elements match grid size
+                allSlotsFilled = false;
+            } else {
+                for (const child of childrenInFrame1) { // Check if all elements are images
+                    if (child.tagName !== 'IMG') {
+                        allSlotsFilled = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!allSlotsFilled) {
+                alert("Please fill all puzzle slots before submitting.");
+                // Timer remains stopped. User can continue or start a new game.
+                return;
+            }
+
+            let allCorrect = true;
+            const incorrectPiecesData = []; // Stores { element: imgElement, currentX: x, currentY: y }
+
+            childrenInFrame1.forEach((imgElement, idx) => {
+                // All children are guaranteed to be IMG elements if allSlotsFilled was true and passed.
+                imgElement.classList.remove('correct-piece-temp', 'incorrect-piece-temp'); // Reset borders
+
+                const currentX = idx % cols;
+                const currentY = Math.floor(idx / cols);
+
+                const originalX = parseInt(imgElement.dataset.originalX);
+                const originalY = parseInt(imgElement.dataset.originalY);
+
+                if (originalX === currentX && originalY === currentY) {
+                    imgElement.classList.add('correct-piece-temp');
+                } else {
+                    allCorrect = false;
+                    imgElement.classList.add('incorrect-piece-temp');
+                    incorrectPiecesData.push({ element: imgElement, currentX: currentX, currentY: currentY });
+                }
+            });
+
+            setTimeout(() => { // Timeout to allow user to see the temporary green/red borders
+                if (allCorrect) {
+                    alert("Congratulations! Puzzle solved!");
+                    // Keep pieces in place with their green borders.
+                    // Disable further interaction - e.g., make pieces in frame1 non-draggable (if they were)
+                    // and clear frame2 or disable dragging from it.
+                    frame2.innerHTML = "<p>Puzzle Solved!</p>"; // Example of disabling frame2
+                    childrenInFrame1.forEach(img => {
+                         img.classList.remove('incorrect-piece-temp'); // Ensure only green stays
+                         img.classList.add('correct-piece-temp'); // Ensure green is there
+                    });
+
+                } else {
+                    alert("Some pieces are incorrect. Incorrect pieces will be returned to the selection area.");
+
+                    incorrectPiecesData.forEach(item => {
+                        const imgToMove = item.element;
+                        imgToMove.classList.remove('correct-piece-temp', 'incorrect-piece-temp'); // Reset border
+
+                        // Restore properties for frame2
+                        imgToMove.draggable = true;
+                        imgToMove.classList.add('puzzle-piece-img');
+                        imgToMove.style.width = pieceWidth + 'px'; // Use pieceWidth for frame2 pieces
+                        imgToMove.style.height = pieceHeight + 'px'; // Use pieceHeight for frame2 pieces
+                        frame2.appendChild(imgToMove);
+
+                        // Create a new placeholder for its spot in frame1
+                        const newPlaceholder = createPlaceholder(item.currentX, item.currentY);
+                        newPlaceholder.style.gridColumnStart = item.currentX + 1; // Set grid position for new placeholder
+                        newPlaceholder.style.gridRowStart = item.currentY + 1;  // Set grid position for new placeholder
+
+                        // Replace the incorrect image with the new placeholder in frame1
+                        if (imgToMove.parentNode === frame1) { // Ensure element is still child of frame1 before replacing
+                           frame1.replaceChild(newPlaceholder, imgToMove);
+                        }
+                    });
+
+                    // Reset borders for pieces that were initially correct but are still on board
+                    childrenInFrame1.forEach(child => {
+                        if (child.tagName === 'IMG' && !incorrectPiecesData.some(p => p.element === child)) {
+                            child.classList.remove('correct-piece-temp', 'incorrect-piece-temp');
+                            // Optionally, re-add correct-piece-temp if you want them to stay green
+                            // For now, just removing temp validation styles from them.
+                        }
+                    });
+                }
+            }, 1000); // 1 second delay to show feedback
+        }
+
+        function startGame() {
+            // Re-enable buttons for a new game
+            doneButton.disabled = false;
+            giveUpButton.disabled = false;
+
+            // Get selected difficulty and set rows/cols
+            const selectedDifficulty = parseInt(difficultySelect.value);
+            rows = selectedDifficulty;
+            cols = selectedDifficulty;
+
+            const imageUrl = imageUrlInput.value.trim();
+
+            if (!imageUrl) {
+                alert('Please enter an image URL.');
+                return;
+            }
+
+            // Clear previous state
+            frame1.innerHTML = '';
+            frame2.innerHTML = '';
+            puzzlePieces = [];
+            // Reset frame1 styles that might have been set by image size
+            // Use a sensible default or manage through CSS classes if preferred
+            frame1.style.width = '600px'; // Reset to default or make it dynamic based on container
+            frame1.style.height = '400px'; // Reset to default
+
+
+            const image = new Image();
+            image.crossOrigin = "Anonymous";
+            image.src = imageUrl;
+
+            image.onload = () => {
+                imageAspectRatio = image.width / image.height;
+
+                // Optional: Minimum image size check
+                const MIN_PIECE_DIMENSION = 25; // Pixels per piece side
+                if (image.width < cols * MIN_PIECE_DIMENSION || image.height < rows * MIN_PIECE_DIMENSION) {
+                    alert(`Image is too small for ${cols}x${rows} difficulty (each piece would be less than ${MIN_PIECE_DIMENSION}px). Please choose a larger image or lower difficulty.`);
+                    // Consider re-enabling start button or other UI reset if needed
+                    return; // Stop game setup
+                }
+
+                // Determine pieceWidth and pieceHeight based on frame1's *current* size and aspect ratio
+                // This makes the puzzle board size relatively consistent.
+                const frame1Width = frame1.offsetWidth;
+                // Calculate frame1Height to maintain image aspect ratio based on its new width
+                const frame1Height = frame1Width / imageAspectRatio;
+                frame1.style.height = frame1Height + 'px';
+
+                pieceWidth = frame1Width / cols;
+                pieceHeight = frame1Height / rows;
+
+                // Loop to create and store puzzle pieces
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const pieceCanvas = document.createElement('canvas');
+                        pieceCanvas.width = pieceWidth;
+                        pieceCanvas.height = pieceHeight;
+                        const context = pieceCanvas.getContext('2d');
+
+                        // Source coordinates and dimensions are from the original image
+                        const sx = j * (image.width / cols);
+                        const sy = i * (image.height / rows);
+                        const sWidth = image.width / cols;
+                        const sHeight = image.height / rows;
+
+                        // Destination coordinates and dimensions are for the canvas (0,0 to pieceWidth,pieceHeight)
+                        context.drawImage(
+                            image,
+                            sx,
+                            sy,
+                            sWidth,
+                            sHeight,
+                            0,               // dx (destination x on canvas)
+                            0,               // dy (destination y on canvas)
+                            pieceWidth,      // dWidth (destination width on canvas)
+                            pieceHeight      // dHeight (destination height on canvas)
+                        );
+
+                        puzzlePieces.push({
+                            x: j,
+                            y: i,
+                            data: pieceCanvas.toDataURL()
+                        });
+                    }
+                }
+
+                console.log('Puzzle pieces:', puzzlePieces);
+                renderBoard();
+                renderPieces();
+                startTimer(); // Start the countdown timer
+            };
+
+            image.onerror = () => {
+                alert('Error: Could not load the image. Please check the URL and try again.');
+            };
+        }
+
+       function renderBoard() {
+           if (puzzlePieces.length === 0) return;
+
+           frame1.innerHTML = ''; // Clear existing content
+           // Set grid properties for frame1
+           frame1.style.display = 'grid';
+           frame1.style.gridTemplateColumns = `repeat(${cols}, ${pieceWidth}px)`;
+           frame1.style.gridTemplateRows = `repeat(${rows}, ${pieceHeight}px)`;
+           frame1.style.gap = '2px'; // Small gap between pieces
+           // Ensure frame1's dimensions are correctly set before this point if they depend on image size.
+           // The startGame function now sets frame1's height based on aspect ratio.
+
+           // The first piece (puzzlePieces[0]) is the hint.
+           const hintPieceData = puzzlePieces[0];
+
+           // Create placeholders or place the hint piece
+           for (let r = 0; r < rows; r++) {
+               for (let c = 0; c < cols; c++) {
+                   if (r === hintPieceData.y && c === hintPieceData.x) {
+                       // Place the hint piece
+                       const hintImage = document.createElement('img');
+                       hintImage.src = hintPieceData.data;
+                       // hintImage.style.width = pieceWidth + 'px'; // No longer needed, covered by #frame1 img CSS
+                       // hintImage.style.height = pieceHeight + 'px';// No longer needed, covered by #frame1 img CSS
+                       hintImage.style.gridColumnStart = c + 1; // CSS grid is 1-indexed
+                       hintImage.style.gridRowStart = r + 1;   // CSS grid is 1-indexed
+                       hintImage.dataset.correct = 'true'; // Mark as correctly placed
+                       hintImage.dataset.originalX = String(c); // Store original X
+                       hintImage.dataset.originalY = String(r); // Store original Y
+                       frame1.appendChild(hintImage);
+                   } else {
+                       // Use the helper to create placeholders
+                       const placeholder = createPlaceholder(c, r);
+                       // Explicitly set grid positioning for the new placeholder
+                       placeholder.style.gridColumnStart = c + 1;
+                       placeholder.style.gridRowStart = r + 1;
+                       frame1.appendChild(placeholder);
+                   }
+               }
+           }
+       }
+
+       function renderPieces() {
+           if (puzzlePieces.length === 0) return;
+
+           frame2.innerHTML = '';
+
+           const piecesToShuffle = puzzlePieces.slice(1);
+           piecesToShuffle.sort(() => Math.random() - 0.5);
+
+           piecesToShuffle.forEach(piece => {
+               const img = document.createElement('img');
+               img.src = piece.data;
+               img.draggable = true;
+               img.dataset.originalX = String(piece.x);
+               img.dataset.originalY = String(piece.y);
+               img.classList.add('puzzle-piece-img');
+               img.style.width = pieceWidth + 'px';
+               img.style.height = pieceHeight + 'px';
+
+               img.addEventListener('dragstart', (event) => {
+                   event.dataTransfer.setData('text/plain', event.target.src);
+                   event.dataTransfer.setData('originalX', event.target.dataset.originalX);
+                   event.dataTransfer.setData('originalY', event.target.dataset.originalY);
+                   event.target.classList.add('dragging'); // Add class for visual feedback
+                   // Store the ID of the dragged element if it has one, or use src to find it later
+                   // For simplicity, we'll find it by the 'dragging' class in the drop handler
+               });
+
+               img.addEventListener('dragend', (event) => {
+                   event.target.classList.remove('dragging'); // Clean up class
+               });
+
+               frame2.appendChild(img);
+           });
+       }
+
+       function createPlaceholder(x, y) {
+           const placeholder = document.createElement('div');
+           placeholder.classList.add('placeholder');
+           // Grid position is set when appending to frame1 by its order,
+           // but setting style can be a fallback or for explicit control if needed.
+           // placeholder.style.gridColumnStart = x + 1;
+           // placeholder.style.gridRowStart = y + 1;
+           placeholder.dataset.x = String(x); // Store target X
+           placeholder.dataset.y = String(y); // Store target Y
+
+           // Add drop event listeners
+           placeholder.addEventListener('dragover', (event) => {
+               event.preventDefault(); // Allow drop
+               placeholder.classList.add('drop-target-highlight');
+           });
+           placeholder.addEventListener('dragleave', () => {
+               placeholder.classList.remove('drop-target-highlight');
+           });
+           placeholder.addEventListener('drop', handleDrop); // Assumes handleDrop is defined
+           return placeholder;
+       }
+
+       function handleDrop(event) {
+           event.preventDefault();
+           const draggedSrc = event.dataTransfer.getData('text/plain');
+           const originalX = event.dataTransfer.getData('originalX');
+           const originalY = event.dataTransfer.getData('originalY');
+
+           // The drop target is the placeholder div
+           const placeholder = event.target;
+           placeholder.classList.remove('drop-target-highlight');
+
+           // Create a new image element for the puzzle board
+           const droppedImage = document.createElement('img');
+           droppedImage.src = draggedSrc;
+           droppedImage.dataset.originalX = originalX;
+           droppedImage.dataset.originalY = originalY;
+           // Styling for image in grid cell is handled by #frame1 img CSS
+
+           // Replace placeholder with the new image
+           if (placeholder.parentNode) { // Check if placeholder is still in DOM
+               placeholder.parentNode.replaceChild(droppedImage, placeholder);
+           }
+
+
+           // Remove the original dragged image from frame2
+           // Find it by the 'dragging' class which should still be on the source element
+           // (dragend hasn't fired yet for the source element)
+           const draggedElementFromFrame2 = frame2.querySelector('img.dragging');
+           if (draggedElementFromFrame2 && draggedElementFromFrame2.src === draggedSrc) {
+               draggedElementFromFrame2.remove();
+           }
+           // If not found by class (e.g. if dragend fired too quickly for some reason),
+           // you might need a more robust way to find it, e.g. by src if srcs are unique enough.
+           // For now, relying on the 'dragging' class.
+       }
+
+       function updateTimerDisplay(seconds) {
+           const minutes = Math.floor(seconds / 60);
+           const secs = seconds % 60;
+           timerDisplay.textContent = `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+       }
+
+       function startTimer() {
+           clearInterval(timerInterval); // Clear any existing timer
+           timeRemaining = 5 * 60; // Reset to 5 minutes (or your desired time)
+           updateTimerDisplay(timeRemaining);
+
+           timerInterval = setInterval(() => {
+               timeRemaining--;
+               updateTimerDisplay(timeRemaining);
+
+               if (timeRemaining <= 0) {
+                   clearInterval(timerInterval);
+                   alert("Time's up! Game Over.");
+                   // Optionally, disable further interactions
+                   // e.g., make pieces non-draggable, disable buttons
+                   // For now, an alert is sufficient.
+                   // Consider calling a function like handleGameOver() here.
+               }
+           }, 1000);
+       }
+    </script>
+</body>
+</html>
