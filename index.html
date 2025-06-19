@@ -251,6 +251,7 @@
                         imgToMove.style.width = pieceWidth + 'px'; // Use pieceWidth for frame2 pieces
                         imgToMove.style.height = pieceHeight + 'px'; // Use pieceHeight for frame2 pieces
                         frame2.appendChild(imgToMove);
+                        addTouchListenersToPiece(imgToMove); // Re-attach touch listeners
 
                         // Create a new placeholder for its spot in frame1
                         const newPlaceholder = createPlaceholder(item.currentX, item.currentY);
@@ -446,13 +447,17 @@
                    event.target.classList.remove('dragging'); // Clean up class
                });
 
-                // Touch event listeners
-                img.addEventListener('touchstart', handleTouchStart, { passive: false });
-                img.addEventListener('touchmove', handleTouchMove, { passive: false });
-                img.addEventListener('touchend', handleTouchEnd);
+                // Add touch listeners using the new refactored function
+                addTouchListenersToPiece(img);
 
                frame2.appendChild(img);
            });
+       }
+
+       function addTouchListenersToPiece(imgElement) {
+           imgElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+           imgElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+           imgElement.addEventListener('touchend', handleTouchEnd);
        }
 
        // Touch Event Handlers
