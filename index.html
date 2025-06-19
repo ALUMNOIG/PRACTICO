@@ -58,6 +58,12 @@
             max-height: 100px; /* Example */
             border: 1px solid #777;
             cursor: grab;
+            /* Add/modify for touch: */
+            -webkit-touch-callout: none; /* Disable callouts on iOS (e.g., copy/paste menu) */
+            user-select: none; /* Prevent text selection on the image itself */
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE/Edge */
         }
         #frame1 img { /* Style for the hint piece and later dropped pieces */
             box-sizing: border-box; /* Ensure border doesn't add to size, affecting grid */
@@ -119,6 +125,10 @@
         let pieceWidth = 0;
         let pieceHeight = 0;
         let imageAspectRatio = 1;
+
+        // Touch drag variables
+        let touchDraggedPiece = null;
+        let touchStartX, touchStartY;
 
         // Timer variables
         let timerInterval;
@@ -436,8 +446,107 @@
                    event.target.classList.remove('dragging'); // Clean up class
                });
 
+                // Touch event listeners
+                img.addEventListener('touchstart', handleTouchStart, { passive: false });
+                img.addEventListener('touchmove', handleTouchMove, { passive: false });
+                img.addEventListener('touchend', handleTouchEnd);
+
                frame2.appendChild(img);
            });
+       }
+
+       // Touch Event Handlers
+       function handleTouchStart(event) {
+           event.preventDefault(); // Prevent default touch actions like scrolling
+           touchDraggedPiece = event.target;
+
+           const rect = touchDraggedPiece.getBoundingClientRect();
+           touchStartX = event.touches[0].clientX - rect.left;
+           touchStartY = event.touches[0].clientY - rect.top;
+
+           touchDraggedPiece.classList.add('dragging');
+           touchDraggedPiece.style.position = 'fixed'; // Use fixed for viewport-relative positioning
+           touchDraggedPiece.style.zIndex = '1000';   // Ensure it's on top
+
+           // Initial position update to follow touch
+           touchDraggedPiece.style.left = (event.touches[0].clientX - touchStartX) + 'px';
+           touchDraggedPiece.style.top = (event.touches[0].clientY - touchStartY) + 'px';
+       }
+
+       function handleTouchMove(event) {
+           event.preventDefault(); // Prevent scrolling while dragging piece
+           if (!touchDraggedPiece) return;
+
+           const touchX = event.touches[0].clientX;
+           const touchY = event.touches[0].clientY;
+
+           touchDraggedPiece.style.left = (touchX - touchStartX) + 'px';
+           touchDraggedPiece.style.top = (touchY - touchStartY) + 'px';
+
+           // Highlight drop target
+           document.querySelectorAll('.placeholder.drop-target-highlight').forEach(p => p.classList.remove('drop-target-highlight'));
+           let targetElement = findDropTarget(touchX, touchY);
+           if (targetElement) {
+               targetElement.classList.add('drop-target-highlight');
+           }
+       }
+
+       function findDropTarget(x, y) {
+           const placeholders = frame1.querySelectorAll('.placeholder');
+           for (const placeholder of placeholders) {
+               const rect = placeholder.getBoundingClientRect();
+               if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
+                   return placeholder;
+               }
+           }
+           // Also check if over an already placed piece (not the hint, not itself if that's possible)
+           // For now, only placeholders are drop targets for simplicity with touch.
+           return null;
+       }
+
+       function handleTouchEnd(event) {
+           // event.preventDefault(); // Not always necessary for touchend, but can be good practice
+           if (!touchDraggedPiece) return;
+
+           document.querySelectorAll('.placeholder.drop-target-highlight').forEach(p => p.classList.remove('drop-target-highlight'));
+
+           const touchX = event.changedTouches[0].clientX;
+           const touchY = event.changedTouches[0].clientY;
+           let targetPlaceholder = findDropTarget(touchX, touchY);
+
+           if (targetPlaceholder) {
+               const draggedSrc = touchDraggedPiece.src;
+               const originalX = touchDraggedPiece.dataset.originalX;
+               const originalY = touchDraggedPiece.dataset.originalY;
+
+               const droppedImage = document.createElement('img');
+               droppedImage.src = draggedSrc;
+               droppedImage.dataset.originalX = originalX;
+               droppedImage.dataset.originalY = originalY;
+               // CSS for #frame1 img will style it (width:100%, height:100%, object-fit:cover)
+
+               // Replace placeholder with the new image
+               // The placeholder itself knows its grid target data (dataset.x, dataset.y)
+               // But for grid placement, we need to set gridColumnStart/RowStart on the new image
+               droppedImage.style.gridColumnStart = parseInt(targetPlaceholder.dataset.x) + 1;
+               droppedImage.style.gridRowStart = parseInt(targetPlaceholder.dataset.y) + 1;
+
+               if (targetPlaceholder.parentNode === frame1) {
+                    frame1.replaceChild(droppedImage, targetPlaceholder);
+               } else {
+                    console.error("Target placeholder's parent is not frame1. This shouldn't happen.");
+               }
+               touchDraggedPiece.remove(); // Remove original piece from frame2
+           } else {
+               // No valid drop target, reset piece style (it will snap back)
+               touchDraggedPiece.style.position = ''; // Reset to default (likely 'static' or as per CSS class)
+               touchDraggedPiece.style.zIndex = '';
+               touchDraggedPiece.style.left = '';
+               touchDraggedPiece.style.top = '';
+           }
+
+           touchDraggedPiece.classList.remove('dragging');
+           touchDraggedPiece = null;
        }
 
        function createPlaceholder(x, y) {

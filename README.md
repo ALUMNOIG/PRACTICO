@@ -20,6 +20,7 @@ A web-based jigsaw puzzle game created with HTML, CSS, and JavaScript. Users can
     *   **"Give Up" Button:** Ends the current game and displays the complete solution.
 *   **Countdown Timer:** A 5-minute timer adds a challenge to the game. Time's up results in a game over.
 *   **Responsive (Basic):** The puzzle board attempts to fit its container. Pieces in the selection area will scroll if they overflow.
+*   **Touch Support:** Playable on smartphones and tablets using touch gestures to drag and drop pieces.
 
 ## How to Play
 
@@ -43,12 +44,12 @@ A web-based jigsaw puzzle game created with HTML, CSS, and JavaScript. Users can
 *   **Frontend:** Pure HTML, CSS, and JavaScript (ES6+).
 *   **No Backend:** The game runs entirely in the browser.
 *   **Image Slicing:** Uses the HTML `<canvas>` element to load, draw, and slice the source image into pieces.
-*   **Drag and Drop:** Native HTML Drag and Drop API.
+*   **Drag and Drop:** Native HTML Drag and Drop API (for mouse) and touch event handling (`touchstart`, `touchmove`, `touchend`) for touch devices.
 *   **Structure:** All code (HTML, CSS, JS) is contained within the `index.html` file.
 
 ## Future Considerations / Potential Enhancements
 
-*   More sophisticated touch support for mobile devices.
+*   Refinements to touch drag behavior (e.g., animation on snap-back if not dropped on a target).
 *   Advanced animations for piece movements and interactions.
 *   Saving game progress or high scores (would require backend or local storage).
 *   A curated list of default puzzles.
